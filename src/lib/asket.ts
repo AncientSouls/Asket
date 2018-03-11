@@ -18,12 +18,12 @@ interface IQueryFragments {
 interface IQuerySchema {
   name?: string;
   options?: IQueryOptions;
-  fields?: IQueryFields;
+  fields?: IQueryFieldsList;
   fill?: boolean;
-  fragment?: string;
+  use?: string;
 }
 
-interface IQueryFields {
+interface IQueryFieldsList {
   [field: string]: IQuerySchema;
 }
 
@@ -32,122 +32,85 @@ interface IQueryOptions {
 }
 
 interface IQueryResolver {
-  (
-    schema: IQuerySchema,
-    data: any,
-    env: any,
-    steps: IQueryStep[],
-    name: string|number,
-  ): Promise<IQueryResult>;
+  (IQueryFlow): Promise<IQueryFlow>;
 }
 
-interface IQueryResult {
+interface IQueryFlow {
+  next?: IQueryAsket;
+  resolver: IQueryResolver;
   data?: any;
   env?: any;
-  dontExec?: boolean;
-  requiredSchema?: IQuerySchema;
+  stop?: boolean;
+  query: IQuery;
   schema?: IQuerySchema;
-  steps?: IQueryStep[];
+  path?: IQueryFlow[];
+  key?: string|number;
+  name?: string|number;
 }
 
-interface IQueryStep {
-  key: string|number;
-  data: any;
-  schema: IQuerySchema;
-  name: string|number;
+interface IQueryAsket {
+  (flow: IQueryFlow): Promise<IQueryFlow>;
 }
 
-class Asket {
-  constructor(
-    public query?: IQuery,
-    public resolver?: IQueryResolver,
-    public env?: any,
-    public data?: any,
-  ) {}
+const asket: IQueryAsket = (flow) => {
+  if (!flow.next) flow.next = asket;
+  if (!flow.schema) flow.schema = flow.query.schema;
+  if (!flow.path) flow.path = [flow];
+  return flow.resolver(flow).then((flow) => {
+    const schema = _.has(flow, 'schema.use') ? flow.query.fragments[flow.schema.use] : flow.schema;
 
-  exec(): Promise<IQueryResult> {
-    return this.execResolver(this.query.schema, this.data, this.env, [])
-    .then(({ schema, data, env, steps }) => this.execSchema(schema, data, env, steps));
-  }
+    if (!flow.stop) {
 
-  execResolver(
-    schema: IQuerySchema,
-    data: any,
-    env: any,
-    steps: IQueryStep[],
-  ): Promise<IQueryResult> {
-    return this.resolver(schema, data, env, steps, _.get(_.last(steps),'name'))
-    .then(({ data, env, requiredSchema, dontExec }) => {
-      let newSchema = schema;
-      if (requiredSchema) {
-        if (_.isObject(schema)) {
-          newSchema = _.merge({}, schema, requiredSchema);
-        } else {
-          newSchema = requiredSchema;
-        }
+      if (_.isArray(flow.data)) {
+        return RSVP.all(_.map(flow.data, (data, index) => {
+          const nextFlow = {
+            ...flow,
+            data,
+            name: undefined,
+            key: index,
+            path: [...flow.path],
+          };
+          nextFlow.path.push(nextFlow);
+          return flow.next(nextFlow).then(flow => flow.data);
+        })).then(all => ({ ...flow, data: all }));
       }
-      return {
-        data, env, requiredSchema, dontExec, steps,
-        schema: newSchema,
-      };
-    });
-  }
-
-  execSchema(
-    schema: IQuerySchema,
-    data: any,
-    env: any,
-    steps: IQueryStep[],
-  ): Promise<IQueryResult> {
-    let result;
-    if (schema.fields || schema.fill) {
-      result = this.execFragment(schema, data, env, steps);
-    } else if (schema.fragment) {
-      result = this.execFragment(this.query.fragments[schema.fragment], data, env, steps);
-    } else {
-      result = new Promise(resolve => resolve({ data, env }));
-    }
-    return result.then(({ data: d, env }) => {
-      if (schema.fill && _.isObject(data) && _.isObject(d)) {
-        return { env, data: _.extend({}, data, d) };
+      
+      if (_.has(schema, 'fields') || _.isObject(flow.data)) {
+        return RSVP.hash(_.mapValues(schema.fields, (fieldSchema, key) => {
+          const name = fieldSchema.name || key;
+          
+          const nextFlow = {
+            ...flow,
+            key, name,
+            data: _.get(flow.data, name),
+            schema: fieldSchema,
+            path: [...flow.path],
+          };
+          nextFlow.path.push(nextFlow);
+          return flow.next(nextFlow).then(flow => flow.data);
+        })).then((hash) => {
+          const nextData = _.isObject(flow.data) && schema.fill ? _.extend(hash, flow.data) : hash;
+          const nextFlow = { ...flow, data: nextData };
+          return nextFlow;
+        });
       }
-      return { env, data: d };
-    });
-  }
 
-  execFragment(
-    schema: IQuerySchema,
-    data: any,
-    env: any,
-    steps: IQueryStep[],
-  ): Promise<IQueryResult> {
-    if (_.isArray(data)) {
-      return RSVP.all(_.map(data, (data, key) => this.execSchema(
-        schema, data, env,
-        [..._.clone(steps), { key, data, schema, name: key }],
-      ).then(({ data }) => data))).then(data => ({ data, env }));
     }
-    return RSVP.hash(_.mapValues(schema.fields, (schema, key) => {
-      const nextSteps = [..._.clone(steps), { key, data, schema, name: schema.name || key }];
-      return this.execResolver(schema, _.get(data, schema.name || key), env, nextSteps)
-      .then(({ schema, data, env, steps, dontExec }) => {
-        if (dontExec) return new Promise(r => r({ data, env }));
-        return this.execSchema(schema, data, env, steps);
-      }).then(({ data }) => data);
-    })).then(data => ({ data, env }));
-  }
-}
+    
+    return new Promise(resolve => resolve(flow));
+  });
+};
 
 export {
-  Asket as default,
-  Asket,
+  asket as default,
+  asket,
   IQuery,
+  IQueryAsket,
   IQueryVariables,
   IQueryFragments,
   IQuerySchema,
-  IQueryFields,
+  IQueryFieldsList,
   IQueryOptions,
   IQueryResolver,
-  IQueryResult,
-  IQueryStep,
+  IQueryFlow,
 };
