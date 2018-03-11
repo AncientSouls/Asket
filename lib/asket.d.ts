@@ -12,42 +12,33 @@ interface IQueryFragments {
 interface IQuerySchema {
     name?: string;
     options?: IQueryOptions;
-    fields?: IQueryFields;
+    fields?: IQueryFieldsList;
     fill?: boolean;
-    fragment?: string;
+    use?: string;
 }
-interface IQueryFields {
+interface IQueryFieldsList {
     [field: string]: IQuerySchema;
 }
 interface IQueryOptions {
     [name: string]: any;
 }
 interface IQueryResolver {
-    (schema: IQuerySchema, data: any, env: any, steps: IQueryStep[], name: string | number): Promise<IQueryResult>;
+    (IQueryFlow: any): Promise<IQueryFlow>;
 }
-interface IQueryResult {
+interface IQueryFlow {
+    next?: IQueryAsket;
+    resolver: IQueryResolver;
     data?: any;
     env?: any;
-    dontExec?: boolean;
-    requiredSchema?: IQuerySchema;
-    schema?: IQuerySchema;
-    steps?: IQueryStep[];
-}
-interface IQueryStep {
-    key: string | number;
-    data: any;
-    schema: IQuerySchema;
-    name: string | number;
-}
-declare class Asket {
+    stop?: boolean;
     query: IQuery;
-    resolver: IQueryResolver;
-    env: any;
-    data: any;
-    constructor(query?: IQuery, resolver?: IQueryResolver, env?: any, data?: any);
-    exec(): Promise<IQueryResult>;
-    execResolver(schema: IQuerySchema, data: any, env: any, steps: IQueryStep[]): Promise<IQueryResult>;
-    execSchema(schema: IQuerySchema, data: any, env: any, steps: IQueryStep[]): Promise<IQueryResult>;
-    execFragment(schema: IQuerySchema, data: any, env: any, steps: IQueryStep[]): Promise<IQueryResult>;
+    schema?: IQuerySchema;
+    path?: IQueryFlow[];
+    key?: string | number;
+    name?: string | number;
 }
-export { Asket as default, Asket, IQuery, IQueryVariables, IQueryFragments, IQuerySchema, IQueryFields, IQueryOptions, IQueryResolver, IQueryResult, IQueryStep };
+interface IQueryAsket {
+    (flow: IQueryFlow): Promise<IQueryFlow>;
+}
+declare const asket: IQueryAsket;
+export { asket as default, asket, IQuery, IQueryAsket, IQueryVariables, IQueryFragments, IQuerySchema, IQueryFieldsList, IQueryOptions, IQueryResolver, IQueryFlow };

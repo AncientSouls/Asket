@@ -1,196 +1,255 @@
 import { assert } from 'chai';
+import * as _ from 'lodash';
 
 import {
-  Asket,
+  asket,
 } from '../lib/asket';
 
 export default function () {
-  describe('Asket:', () => {
-    it(`fields not exists`, () => {
+  describe('asket()', () => {
+    it(`fields`, () => {
+      const keys = [];
       const names = [];
-      return new Asket(
-        { schema: {} },
-        (schema, data, env, steps, name) => {
-          names.push(name);
-          return new Promise(r => r({ data: 123 }));
-        },
-      ).exec().then(({ data }) => {
-        assert.deepEqual(names, [undefined]);
-        assert.deepEqual(data, 123);
-      });
-    });
-    it(`fields empty`, () => {
-      const names = [];
-      return new Asket(
-        { schema: { fields: {} } },
-        (schema, data, env, steps, name) => {
-          names.push(name);
-          return new Promise(r => r({ data: 123 }));
-        },
-      ).exec().then(({ data }) => {
-        assert.deepEqual(names, [undefined]);
-        assert.deepEqual(data, {});
-      });
-    });
-    it(`fields simple`, () => {
-      const names = [];
-      return new Asket(
-        { schema: { fields: { a: {} } } },
-        (schema, data, env, steps, name) => new Promise((r) => {
-          names.push(name);
-          r({ data: 123 });
+
+      return asket({
+        query: { schema: { fields: {
+          a: {}, b: {}, c: {},
+        } } },
+        resolver: flow => new Promise((resolve) => {
+          keys.push(flow.key);
+          names.push(flow.name);
+
+          resolve({
+            ...flow,
+            data: (flow.name === 'a' ? {}
+          : (flow.name === 'b' ? { x: 'y' }
+          : (flow.name === 'c' ? 123 : {}))),
+          });
         }),
-      ).exec().then(({ data }) => {
-        assert.deepEqual(names, [undefined, 'a']);
-        assert.deepEqual(data, { a: 123 });
+      }).then((flow) => {
+        assert.deepEqual(keys, [undefined, 'a', 'b', 'c']);
+        assert.deepEqual(names, [undefined, 'a', 'b', 'c']);
+
+        assert.deepEqual(flow.data, { a: {}, b: {}, c: 123 });
       });
     });
     it(`arrays`, () => {
+      const keys = [];
       const names = [];
-      return new Asket(
-        { schema: { fields: { a: { fields: { b: { fields: { c: {} } } } } } } },
-        (schema, data, env, steps, name) => new Promise((r) => {
-          names.push(name);
-          if (steps.length === 1) {
-            r({ data: [123, 123] });
-          } else {
-            r({ data: 123 });
-          }
+
+      return asket({
+        query: { schema: { fields:
+          { a: { fields: { b: { fields: { c: {} } } } } },
+        } },
+        resolver: flow => new Promise((resolve) => {
+          keys.push(flow.key);
+          names.push(flow.name);
+
+          resolve({
+            ...flow,
+            data: flow.name === 'a' ? [123, 234] : 345,
+          });
         }),
-      ).exec().then(({ data }) => {
-        assert.deepEqual(names, [undefined, 'a', 'b', 'b', 'c', 'c']);
-        assert.deepEqual(data, { a: [{ b: { c: 123 } }, { b: { c: 123 } }] });
+      }).then((flow) => {
+        assert.deepEqual(keys, [undefined, 'a', 0, 1, 'b', 'b', 'c', 'c']);
+        assert.deepEqual(names, [undefined, 'a', undefined, undefined, 'b', 'b', 'c', 'c']);
+
+        assert.deepEqual(flow.data, { a: [{ b: { c: 345 } }, { b: { c: 345 } }] });
       });
     });
     it(`not in fields`, () => {
+      const keys = [];
       const names = [];
-      return new Asket(
-        { schema: { fields: { a: {} } } },
-        (schema, data, env, steps, name) => new Promise((r) => {
-          names.push(name);
-          if (!steps.length) {
-            r({ data: { a: 234, b: 345 } });
-          } else {
-            r({ data: 123 });
-          }
+
+      return asket({
+        query: { schema: { fields: { a: {} } } },
+        resolver: flow => new Promise((resolve) => {
+          keys.push(flow.key);
+          names.push(flow.name);
+
+          resolve({
+            ...flow,
+            data: flow.path.length === 1 ? { a: 234, b: 345 } : flow.data,
+          });
         }),
-      ).exec().then(({ data }) => {
+      }).then((flow) => {
+        assert.deepEqual(keys, [undefined, 'a']);
         assert.deepEqual(names, [undefined, 'a']);
-        assert.deepEqual(data, { a: 123 });
+
+        assert.deepEqual(flow.data, { a: 234 });
       });
     });
     it(`fill`, () => {
+      const keys = [];
       const names = [];
-      return new Asket(
-        { schema: { fields: { a: {} }, fill: true } },
-        (schema, data, env, steps, name) => new Promise((r) => {
-          names.push(name);
-          if (!steps.length) {
-            r({ data: { a: 234, b: 345 } });
-          } else {
-            r({ data: 123 });
-          }
+
+      return asket({
+        query: { schema: { fields: { a: {} }, fill: true  } },
+        resolver: flow => new Promise((resolve) => {
+          keys.push(flow.key);
+          names.push(flow.name);
+
+          resolve({
+            ...flow,
+            data: flow.path.length === 1 ? { a: 234, b: 345 } : flow.data,
+          });
         }),
-      ).exec().then(({ data }) => {
+      }).then((flow) => {
+        assert.deepEqual(keys, [undefined, 'a']);
         assert.deepEqual(names, [undefined, 'a']);
-        assert.deepEqual(data, { a: 123, b: 345 });
+
+        assert.deepEqual(flow.data, { a: 234, b: 345 });
       });
     });
     it(`options`, () => {
+      const keys = [];
       const names = [];
-      return new Asket(
-        { schema: { options: { key: 'abc' }, fill: true } },
-        (schema, data, env, steps, name) => new Promise((r) => {
-          names.push(name);
-          r({ data: { [schema.options.key]: 123 } });
+
+      return asket({
+        query: { schema: { options: { key: 'a' }, fill: true } },
+        resolver: flow => new Promise((resolve) => {
+          keys.push(flow.key);
+          names.push(flow.name);
+
+          resolve({
+            ...flow,
+            data: { [flow.schema.options.key]: 123 },
+          });
         }),
-      ).exec().then(({ data }) => {
+      }).then((flow) => {
+        assert.deepEqual(keys, [undefined]);
         assert.deepEqual(names, [undefined]);
-        assert.deepEqual(data, { abc: 123 });
+
+        assert.deepEqual(flow.data, { a: 123 });
       });
     });
     it(`variables`, () => {
+      const keys = [];
       const names = [];
-      return new Asket(
-        { variables: { x: 345 }, schema: { fields: { a: { options: { y: 'x' } } } } },
-        function (schema, data, env, steps, name) {
-          return new Promise((r) => {
-            names.push(name);
-            if (!steps.length) {
-              r({ data: {} });
-            } else {
-              r({ data: this.query.variables[schema.options.y] });
-            }
-          });
+
+      return asket({
+        query: {
+          variables: { x: 345 },
+          schema: { fields: { a: { options: { y: 'x' } } } },
         },
-      ).exec().then(({ data }) => {
+        resolver: flow => new Promise((resolve) => {
+          keys.push(flow.key);
+          names.push(flow.name);
+
+          resolve({
+            ...flow,
+            data: flow.path.length === 1 ? {} : flow.query.variables[flow.schema.options.y],
+          });
+        }),
+      }).then((flow) => {
+        assert.deepEqual(keys, [undefined, 'a']);
         assert.deepEqual(names, [undefined, 'a']);
-        assert.deepEqual(data, { a: 345 });
+
+        assert.deepEqual(flow.data, { a: 345 });
       });
     });
     it(`fragment`, () => {
+      const keys = [];
       const names = [];
-      return new Asket(
-        { fragments: { x: { fields: { y: {} } } }, schema: { fields: { a: { fragment: 'x' } } } },
-        (schema, data, env, steps, name) => new Promise((r) => {
-          names.push(name);
-          r({ data: 123 });
+
+      return asket({
+        query: {
+          fragments: { x: { fields: { y: {} } } },
+          schema: { fields: { a: { use: 'x' } } },
+        },
+        resolver: flow => new Promise((resolve) => {
+          keys.push(flow.key);
+          names.push(flow.name);
+
+          resolve({
+            ...flow,
+            data: 123,
+          });
         }),
-      ).exec().then(({ data }) => {
+      }).then((flow) => {
+        assert.deepEqual(keys, [undefined, 'a', 'y']);
         assert.deepEqual(names, [undefined, 'a', 'y']);
-        assert.deepEqual(data, { a: { y: 123 } });
+
+        assert.deepEqual(flow.data, { a: { y: 123 } });
       });
     });
     it(`recursion`, () => {
+      const keys = [];
       const names = [];
-      return new Asket(
-        {
-          fragments: { x: { fields: { y: { fragment: 'x' } } } },
-          schema: { fields: { a: { fragment: 'x' } } },
+
+      return asket({
+        query: {
+          fragments: { x: { fields: { y: { use: 'x' } } } },
+          schema: { fields: { a: { use: 'x' } } },
         },
-        (schema, data, env, steps, name) => new Promise((r) => {
-          names.push(name);
-          r({ data: 123, dontExec: steps.length > 5 });
+        resolver: flow => new Promise((resolve) => {
+          keys.push(flow.key);
+          names.push(flow.name);
+
+          resolve({
+            ...flow,
+            data: 123,
+            stop: flow.path.length > 6,
+          });
         }),
-      ).exec().then(({ data }) => {
+      }).then((flow) => {
+        assert.deepEqual(keys, [undefined, 'a', 'y', 'y', 'y', 'y', 'y']);
         assert.deepEqual(names, [undefined, 'a', 'y', 'y', 'y', 'y', 'y']);
-        assert.deepEqual(data, { a: { y: { y: { y: { y: { y: 123 } } } } } });
+
+        assert.deepEqual(flow.data, { a: { y: { y: { y: { y: { y: 123 } } } } } });
       });
     });
-    it(`requiredSchema`, () => {
+    it(`ovveride schema`, () => {
+      const keys = [];
       const names = [];
-      return new Asket(
-        { schema: { fields: { a: {} } } },
-        (schema, data, env, steps, name) => new Promise((r) => {
-          names.push(name);
-          if (env === 'root') {
-            r({
-              data: { a: 123, b: 234, c: 345 },
-              requiredSchema: { fields: { c: {} } },
-            });
-          } else {
-            r({ data });
-          }
+
+      return asket({
+        query: {
+          schema: { fields: { a: {} } },
+        },
+        resolver: flow => new Promise((resolve) => {
+          keys.push(flow.key);
+          names.push(flow.name);
+
+          const schema = flow.path.length === 1
+          ? _.merge({}, flow.schema, { fields: { c: {} } })
+          : flow.schema;
+
+          resolve({
+            ...flow,
+            schema,
+            data: flow.path.length === 1 ? { a: 123, b: 234, c: 345 } : flow.data,
+          });
         }),
-        'root',
-      ).exec().then(({ data }) => {
+      }).then((flow) => {
+        assert.deepEqual(keys, [undefined, 'a', 'c']);
         assert.deepEqual(names, [undefined, 'a', 'c']);
-        assert.deepEqual(data, { a: 123, c: 345 });
+
+        assert.deepEqual(flow.data, { a: 123, c: 345 });
       });
     });
     it(`aliases`, () => {
+      const keys = [];
       const names = [];
-      return new Asket(
-        { schema: { fields: { b: { name: 'y' } } } },
-        (schema, data, env, steps, name) => new Promise((r) => {
-          names.push(name);
-          if (env === 'root') r({ data: { y: 123 } });
-          else r({ data });
+
+      return asket({
+        query: {
+          schema: { fields: { a: { name: 'b' } } },
+        },
+        resolver: flow => new Promise((resolve) => {
+          keys.push(flow.key);
+          names.push(flow.name);
+
+          resolve({
+            ...flow,
+            data: flow.name === 'b' ? 123 : {},
+          });
         }),
-        'root',
-      ).exec().then(({ data }) => {
-        assert.deepEqual(names, [undefined, 'y']);
-        assert.deepEqual(data, { b: 123 });
+      }).then((flow) => {
+        assert.deepEqual(keys, [undefined, 'a']);
+        assert.deepEqual(names, [undefined, 'b']);
+
+        assert.deepEqual(flow.data, { a: 123 });
       });
     });
   });
