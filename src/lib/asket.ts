@@ -43,6 +43,7 @@ interface IQueryResolver {
 interface IQueryResult {
   data?: any;
   env?: any;
+  dontExec?: boolean;
 }
 
 interface IQueryStep {
@@ -71,7 +72,7 @@ class Asket {
     steps: IQueryStep[],
   ): Promise<IQueryResult> {
     let result;
-    if (schema.fields || schema.fill || schema.options) {
+    if (schema.fields || schema.fill) {
       result = this.execFragment(schema, data, env, steps);
     } else if (schema.fragment) {
       result = this.execFragment(this.query.fragments[schema.fragment], data, env, steps);
@@ -101,7 +102,10 @@ class Asket {
     return RSVP.hash(_.mapValues(schema.fields, (schema, key) => {
       const nextSteps = [..._.clone(steps), { key, data, schema }];
       return this.resolver(schema, _.get(data, key), env, nextSteps)
-      .then(({ data, env }) => {
+      .then(({ data, env, dontExec }) => {
+        if (dontExec) {
+          return new Promise(r => r({ data, env }));
+        }
         return this.execSchema(
           schema, data, env,
           nextSteps,

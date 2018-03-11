@@ -28,6 +28,7 @@ interface IQueryResolver {
 interface IQueryResult {
     data?: any;
     env?: any;
+    dontExec?: boolean;
 }
 interface IQueryStep {
     key: string | number;

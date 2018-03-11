@@ -68,14 +68,6 @@ export default function () {
     ).exec().then(({ data }) => {
       assert.deepEqual(data, { abc: 123 });
     }));
-    it(`fragment`, () => new Asket(
-      { fragments: { x: { fields: { y: {} } } }, schema: { fields: { a: { fragment: 'x' } } } },
-      (schema, data, env, steps) => new Promise((r) => {
-        r({ data: 123 });
-      }),
-    ).exec().then(({ data }) => {
-      assert.deepEqual(data, { a: { y: 123 } });
-    }));
     it(`variables`, () => new Asket(
       { variables: { x: 345 }, schema: { fields: { a: { options: { y: 'x' } } } } },
       function (schema, data, env, steps) {
@@ -89,6 +81,25 @@ export default function () {
       },
     ).exec().then(({ data }) => {
       assert.deepEqual(data, { a: 345 });
+    }));
+    it(`fragment`, () => new Asket(
+      { fragments: { x: { fields: { y: {} } } }, schema: { fields: { a: { fragment: 'x' } } } },
+      (schema, data, env, steps) => new Promise((r) => {
+        r({ data: 123 });
+      }),
+    ).exec().then(({ data }) => {
+      assert.deepEqual(data, { a: { y: 123 } });
+    }));
+    it(`recursion`, () => new Asket(
+      {
+        fragments: { x: { fields: { y: { fragment: 'x' } } } },
+        schema: { fields: { a: { fragment: 'x' } } },
+      },
+      (schema, data, env, steps) => new Promise((r) => {
+        r({ data: 123, dontExec: steps.length > 5 });
+      }),
+    ).exec().then(({ data }) => {
+      assert.deepEqual(data, { a: { y: { y: { y: { y: { y: 123 } } } } } });
     }));
   });
 }
