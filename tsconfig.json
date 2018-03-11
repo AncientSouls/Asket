@@ -6,7 +6,7 @@
     "sourceMap": true,
     "declaration": true,
     "outDir": "./",
-    "target": "es2017"
+    "target": "es6"
   },
   "include": [
     "./src/*/*.ts"
