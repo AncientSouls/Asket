@@ -29,11 +29,15 @@ interface IQueryResult {
     data?: any;
     env?: any;
     dontExec?: boolean;
+    requiredSchema?: IQuerySchema;
+    schema?: IQuerySchema;
+    steps?: IQueryStep[];
 }
 interface IQueryStep {
     key: string | number;
     data: any;
     schema: IQuerySchema;
+    name?: string;
 }
 declare class Asket {
     query: IQuery;
@@ -42,6 +46,7 @@ declare class Asket {
     data: any;
     constructor(query?: IQuery, resolver?: IQueryResolver, env?: any, data?: any);
     exec(): Promise<IQueryResult>;
+    execResolver(schema: IQuerySchema, data: any, env: any, steps: IQueryStep[]): Promise<IQueryResult>;
     execSchema(schema: IQuerySchema, data: any, env: any, steps: IQueryStep[]): Promise<IQueryResult>;
     execFragment(schema: IQuerySchema, data: any, env: any, steps: IQueryStep[]): Promise<IQueryResult>;
 }
