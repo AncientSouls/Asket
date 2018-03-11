@@ -23,7 +23,7 @@ interface IQueryOptions {
     [name: string]: any;
 }
 interface IQueryResolver {
-    (schema: IQuerySchema, data: any, env: any, steps: IQueryStep[]): Promise<IQueryResult>;
+    (schema: IQuerySchema, data: any, env: any, steps: IQueryStep[], name: string | number): Promise<IQueryResult>;
 }
 interface IQueryResult {
     data?: any;
@@ -37,7 +37,7 @@ interface IQueryStep {
     key: string | number;
     data: any;
     schema: IQuerySchema;
-    name?: string;
+    name: string | number;
 }
 declare class Asket {
     query: IQuery;
