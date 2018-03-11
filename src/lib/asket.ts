@@ -37,6 +37,7 @@ interface IQueryResolver {
     data: any,
     env: any,
     steps: IQueryStep[],
+    name: string|number,
   ): Promise<IQueryResult>;
 }
 
@@ -53,7 +54,7 @@ interface IQueryStep {
   key: string|number;
   data: any;
   schema: IQuerySchema;
-  name?: string;
+  name: string|number;
 }
 
 class Asket {
@@ -75,7 +76,7 @@ class Asket {
     env: any,
     steps: IQueryStep[],
   ): Promise<IQueryResult> {
-    return this.resolver(schema, data, env, steps)
+    return this.resolver(schema, data, env, steps, _.get(_.last(steps),'name'))
     .then(({ data, env, requiredSchema, dontExec }) => {
       let newSchema = schema;
       if (requiredSchema) {
@@ -123,11 +124,11 @@ class Asket {
     if (_.isArray(data)) {
       return RSVP.all(_.map(data, (data, key) => this.execSchema(
         schema, data, env,
-        [..._.clone(steps), { key, data, schema }],
+        [..._.clone(steps), { key, data, schema, name: key }],
       ).then(({ data }) => data))).then(data => ({ data, env }));
     }
     return RSVP.hash(_.mapValues(schema.fields, (schema, key) => {
-      const nextSteps = [..._.clone(steps), { key, data, schema, name: schema.name }];
+      const nextSteps = [..._.clone(steps), { key, data, schema, name: schema.name || key }];
       return this.execResolver(schema, _.get(data, schema.name || key), env, nextSteps)
       .then(({ schema, data, env, steps, dontExec }) => {
         if (dontExec) return new Promise(r => r({ data, env }));
