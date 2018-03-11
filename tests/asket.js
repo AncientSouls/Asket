@@ -73,6 +73,27 @@ function default_1() {
         })).exec().then(({ data }) => {
             chai_1.assert.deepEqual(data, { a: { y: { y: { y: { y: { y: 123 } } } } } });
         }));
+        it(`requiredSchema`, () => new asket_1.Asket({ schema: { fields: { a: {} } } }, (schema, data, env, steps) => new Promise((r) => {
+            if (env === 'root') {
+                r({
+                    data: { a: 123, b: 234, c: 345 },
+                    requiredSchema: { fields: { c: {} } },
+                });
+            }
+            else {
+                r({ data });
+            }
+        }), 'root').exec().then(({ data }) => {
+            chai_1.assert.deepEqual(data, { a: 123, c: 345 });
+        }));
+        it(`aliases`, () => new asket_1.Asket({ schema: { fields: { b: { name: 'y' } } } }, (schema, data, env, steps) => new Promise((r) => {
+            if (env === 'root')
+                r({ data: { y: 123 } });
+            else
+                r({ data });
+        }), 'root').exec().then(({ data }) => {
+            chai_1.assert.deepEqual(data, { b: 123 });
+        }));
     });
 }
 exports.default = default_1;

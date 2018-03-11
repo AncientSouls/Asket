@@ -44,12 +44,16 @@ interface IQueryResult {
   data?: any;
   env?: any;
   dontExec?: boolean;
+  requiredSchema?: IQuerySchema;
+  schema?: IQuerySchema;
+  steps?: IQueryStep[];
 }
 
 interface IQueryStep {
   key: string|number;
   data: any;
   schema: IQuerySchema;
+  name?: string;
 }
 
 class Asket {
@@ -61,8 +65,31 @@ class Asket {
   ) {}
 
   exec(): Promise<IQueryResult> {
-    return this.resolver(this.query.schema, this.data, this.env, [])
-    .then(({ data, env }) => this.execSchema(this.query.schema, data, env, []));
+    return this.execResolver(this.query.schema, this.data, this.env, [])
+    .then(({ schema, data, env, steps }) => this.execSchema(schema, data, env, steps));
+  }
+
+  execResolver(
+    schema: IQuerySchema,
+    data: any,
+    env: any,
+    steps: IQueryStep[],
+  ): Promise<IQueryResult> {
+    return this.resolver(schema, data, env, steps)
+    .then(({ data, env, requiredSchema, dontExec }) => {
+      let newSchema = schema;
+      if (requiredSchema) {
+        if (_.isObject(schema)) {
+          newSchema = _.merge({}, schema, requiredSchema);
+        } else {
+          newSchema = requiredSchema;
+        }
+      }
+      return {
+        data, env, requiredSchema, dontExec, steps,
+        schema: newSchema,
+      };
+    });
   }
 
   execSchema(
@@ -100,16 +127,11 @@ class Asket {
       ).then(({ data }) => data))).then(data => ({ data, env }));
     }
     return RSVP.hash(_.mapValues(schema.fields, (schema, key) => {
-      const nextSteps = [..._.clone(steps), { key, data, schema }];
-      return this.resolver(schema, _.get(data, key), env, nextSteps)
-      .then(({ data, env, dontExec }) => {
-        if (dontExec) {
-          return new Promise(r => r({ data, env }));
-        }
-        return this.execSchema(
-          schema, data, env,
-          nextSteps,
-        );
+      const nextSteps = [..._.clone(steps), { key, data, schema, name: schema.name }];
+      return this.execResolver(schema, _.get(data, schema.name || key), env, nextSteps)
+      .then(({ schema, data, env, steps, dontExec }) => {
+        if (dontExec) return new Promise(r => r({ data, env }));
+        return this.execSchema(schema, data, env, steps);
       }).then(({ data }) => data);
     })).then(data => ({ data, env }));
   }

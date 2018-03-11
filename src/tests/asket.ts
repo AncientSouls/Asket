@@ -101,5 +101,31 @@ export default function () {
     ).exec().then(({ data }) => {
       assert.deepEqual(data, { a: { y: { y: { y: { y: { y: 123 } } } } } });
     }));
+    it(`requiredSchema`, () => new Asket(
+      { schema: { fields: { a: {} } } },
+      (schema, data, env, steps) => new Promise((r) => {
+        if (env === 'root') {
+          r({
+            data: { a: 123, b: 234, c: 345 },
+            requiredSchema: { fields: { c: {} } },
+          });
+        } else {
+          r({ data });
+        }
+      }),
+      'root',
+    ).exec().then(({ data }) => {
+      assert.deepEqual(data, { a: 123, c: 345 });
+    }));
+    it(`aliases`, () => new Asket(
+      { schema: { fields: { b: { name: 'y' } } } },
+      (schema, data, env, steps) => new Promise((r) => {
+        if (env === 'root') r({ data: { y: 123 } });
+        else r({ data });
+      }),
+      'root',
+    ).exec().then(({ data }) => {
+      assert.deepEqual(data, { b: 123 });
+    }));
   });
 }
