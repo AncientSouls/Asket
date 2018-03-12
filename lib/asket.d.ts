@@ -15,6 +15,7 @@ interface IQuerySchema {
     fields?: IQueryFieldsList;
     fill?: boolean;
     use?: string;
+    _used?: true;
 }
 interface IQueryFieldsList {
     [field: string]: IQuerySchema;
@@ -31,7 +32,7 @@ interface IQueryFlow {
     data?: any;
     env?: any;
     stop?: boolean;
-    query: IQuery;
+    query?: IQuery;
     schema?: IQuerySchema;
     path?: IQueryFlow[];
     key?: string | number;

@@ -154,8 +154,15 @@ export default function () {
 
       return asket({
         query: {
-          fragments: { x: { fields: { y: {} } } },
-          schema: { fields: { a: { use: 'x' } } },
+          fragments: {
+            x: { name: 'z', fields: { y: {} } },
+            g: { fields: { h: {} } },
+          },
+          schema: { fields: {
+            a: { use: 'x' }, // z
+            b: { name: 'e', use: 'x' }, // e
+            c: { use: 'g' }, // c
+          } },
         },
         resolver: flow => new Promise((resolve) => {
           keys.push(flow.key);
@@ -167,10 +174,14 @@ export default function () {
           });
         }),
       }).then((flow) => {
-        assert.deepEqual(keys, [undefined, 'a', 'y']);
-        assert.deepEqual(names, [undefined, 'a', 'y']);
+        assert.deepEqual(keys, [undefined, 'a', 'b', 'c', 'y', 'y', 'h']);
+        assert.deepEqual(names, [undefined, 'z', 'e', 'c', 'y', 'y', 'h']);
 
-        assert.deepEqual(flow.data, { a: { y: 123 } });
+        assert.deepEqual(flow.data, {
+          a: { y: 123 },
+          b: { y: 123 },
+          c: { h: 123 },
+        });
       });
     });
     it(`recursion`, () => {
