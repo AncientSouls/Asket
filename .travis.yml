@@ -10,6 +10,9 @@ os:
   - linux
   - osx
 
+services:
+  - docker
+
 install:
   - npm install
 
@@ -17,6 +20,7 @@ script:
   - npm run tslint
   - npm run tsc
   - npm run test
+  - npm run dev-test
 jobs:
   include:
       stage: deploy
