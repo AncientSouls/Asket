@@ -1,66 +1,142 @@
 import * as _ from 'lodash';
 import * as RSVP from 'rsvp';
 
-interface IQuery {
+export interface IQuery {
+  /** 
+   * Global container of some data, which can be used in any part of resolver logic.
+  */
   variables?: IQueryVariables;
+
+  /** 
+   * Pieces of query for reusing in schema.
+  */
   fragments?: IQueryFragments;
+
+  /** 
+   * Body of query, which is need to be parsed, mutated, and etc.
+  */
   schema: IQuerySchema;
 }
 
-interface IQueryVariables {
+export interface IQueryVariables {
   [name: string]: any;
 }
 
-interface IQueryFragments {
+export interface IQueryFragments {
   [name: string]: IQuerySchema;
 }
 
-interface IQuerySchema {
+export interface IQuerySchema {
+  /** 
+   * Local name of current deep's level in schema.
+  */
   name?: string;
+
+  /** 
+   * Local container of some data, which can be used in any part of resolver logic.
+  */
   options?: IQueryOptions;
+
+  /** 
+   * Structure of this level.
+  */
   fields?: IQueryFieldsList;
+
+  /** 
+   * Should resolver to fill data with keys, which are not exists in schema?
+  */
   fill?: boolean;
+
+  /** 
+   * Use here fragmet of query.
+  */
   use?: string;
+
+  /** 
+   * Does this level already used in resolver?
+  */
   _used?: true;
 }
 
-interface IQueryFieldsList {
+export interface IQueryFieldsList {
   [field: string]: IQuerySchema;
 }
 
-interface IQueryOptions {
+export interface IQueryOptions {
   [name: string]: any;
 }
 
-interface IQueryResolver {
+export interface IQueryResolver {
   (IQueryFlow): Promise<IQueryFlow>;
 }
 
-interface IQueryFlow {
+export interface IQueryFlow {
+  /** 
+   * `Asket()` in order to go to next deep's level.
+  */
   next?: IQueryAsket;
+
+  /** 
+   * Getter and data handler.
+  */
   resolver: IQueryResolver;
+
+  /** 
+   * Some data of this level.
+  */
   data?: any;
+
+  /** 
+   * Context for resolver.
+  */
   env?: any;
+
+  /** 
+   * Instruction from resolver to stop work.
+  */
   stop?: boolean;
+
+  /** 
+   * Original query, which started procces.
+  */
   query?: IQuery;
+
+  /** 
+   * Schema of current deep's level.
+  */
   schema?: IQuerySchema;
+
+  /** 
+   * Structure of all flows.
+  */
   path?: IQueryFlow[];
+
+  /** 
+   * Key of this level in schema.
+  */
   key?: string|number;
+
+  /** 
+   * Name of this level in schema. (Key by default, if name is not specified)
+  */
   name?: string|number;
 }
 
-interface IQueryAsket {
+export interface IQueryAsket {
   (flow: IQueryFlow): Promise<IQueryFlow>;
 }
 
-const useSchema = (flow) => {
+/** 
+ * Mark this level as already used.
+*/
+export const useSchema = (flow) => {
   if (flow.schema._used) return;
   flow.schema = _.has(flow, 'schema.use')
   ? flow.query.fragments[flow.schema.use] : flow.schema;
   flow.schema._used = true;
 };
 
-const asket: IQueryAsket = (flow) => {
+export const asket: IQueryAsket = (flow) => {
   if (!flow.next) flow.next = asket;
   if (!flow.path) flow.path = [flow];
   if (!flow.query) flow.query = { schema: {} };
@@ -109,18 +185,4 @@ const asket: IQueryAsket = (flow) => {
     
     return new Promise(resolve => resolve(flow));
   });
-};
-
-export {
-  asket as default,
-  asket,
-  IQuery,
-  IQueryAsket,
-  IQueryVariables,
-  IQueryFragments,
-  IQuerySchema,
-  IQueryFieldsList,
-  IQueryOptions,
-  IQueryResolver,
-  IQueryFlow,
 };

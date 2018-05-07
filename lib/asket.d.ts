@@ -1,15 +1,15 @@
-interface IQuery {
+export interface IQuery {
     variables?: IQueryVariables;
     fragments?: IQueryFragments;
     schema: IQuerySchema;
 }
-interface IQueryVariables {
+export interface IQueryVariables {
     [name: string]: any;
 }
-interface IQueryFragments {
+export interface IQueryFragments {
     [name: string]: IQuerySchema;
 }
-interface IQuerySchema {
+export interface IQuerySchema {
     name?: string;
     options?: IQueryOptions;
     fields?: IQueryFieldsList;
@@ -17,16 +17,16 @@ interface IQuerySchema {
     use?: string;
     _used?: true;
 }
-interface IQueryFieldsList {
+export interface IQueryFieldsList {
     [field: string]: IQuerySchema;
 }
-interface IQueryOptions {
+export interface IQueryOptions {
     [name: string]: any;
 }
-interface IQueryResolver {
+export interface IQueryResolver {
     (IQueryFlow: any): Promise<IQueryFlow>;
 }
-interface IQueryFlow {
+export interface IQueryFlow {
     next?: IQueryAsket;
     resolver: IQueryResolver;
     data?: any;
@@ -38,8 +38,8 @@ interface IQueryFlow {
     key?: string | number;
     name?: string | number;
 }
-interface IQueryAsket {
+export interface IQueryAsket {
     (flow: IQueryFlow): Promise<IQueryFlow>;
 }
-declare const asket: IQueryAsket;
-export { asket as default, asket, IQuery, IQueryAsket, IQueryVariables, IQueryFragments, IQuerySchema, IQueryFieldsList, IQueryOptions, IQueryResolver, IQueryFlow };
+export declare const useSchema: (flow: any) => void;
+export declare const asket: IQueryAsket;
